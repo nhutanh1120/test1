@@ -1,0 +1,5 @@
+https://api.dicebear.com/7.x/avataaars/svg?seed=John
+
+https://api.dicebear.com/7.x/avataaars/svg?seed=Jane
+
+https://api.dicebear.com/7.x/avataaars/svg?seed=Mike
