@@ -1,0 +1,193 @@
+import React, { useState } from 'react';
+
+function highlightWords(a, b, lang = 'en') {
+    if (lang === 'ja') {
+        const normalizedA = a.normalize('NFKC');
+        const normalizedB = b.normalize('NFKC');
+
+        // Tạo regex để tìm cụm từ (a) trong b
+        const regex = new RegExp(normalizedA, 'g');
+
+        // Thay thế cụm từ bằng thẻ <span> với màu đỏ
+        const result = normalizedB.replace(regex, (match) => {
+            return `<span style="color:red;">${match}</span>`;
+        });
+        return <span dangerouslySetInnerHTML={{ __html: result }} />;
+    }
+
+    // Xử lý cho tiếng Anh
+    const wordsToHighlight = a.toLowerCase().split(/\s+/); // Tách các từ trong a
+    let result = b; // Sử dụng b ban đầu
+
+    // Duyệt qua từng từ trong a và tô màu cho các từ khớp trong b
+    wordsToHighlight.forEach((word) => {
+        if (word.trim() === '') return;
+
+        // Tạo regex để tìm từng từ và tô màu
+        // Đúng với từ
+        // const regex = new RegExp(`\\b${word}\\b`, 'gi'); // 'gi' để không phân biệt chữ hoa/thường
+        // khớp một phần
+        const regex = new RegExp(`\\w*${word}\\w*`, 'gi');
+
+        // Thay thế từ khớp bằng <span> để tô màu
+        result = result.replace(regex, (match) => {
+            return `<span style="color:red;">${match}</span>`;
+        });
+    });
+
+    return <span dangerouslySetInnerHTML={{ __html: result }} />;
+}
+
+function highlightFromObject(a, b, lang = 'en') {
+    const normalizedA = a.normalize('NFKC');
+    const keywords = lang === 'ja' ? [normalizedA] : normalizedA.toLowerCase().split(/\s+/).filter(Boolean);
+
+    const resultFragments = [];
+
+    b.block.forEach((item) => {
+        const rawText = item.data?.text || '';
+        const normalizedText = rawText.normalize('NFKC');
+        const lowerText = normalizedText.toLowerCase();
+
+        keywords.forEach((keyword) => {
+            let regex;
+            if (lang === 'ja') {
+                regex = new RegExp(keyword, 'g');
+            } else {
+                // Tìm từ bắt đầu bằng từ khóa
+                // regex = new RegExp(`\\b(${keyword}\\w*)`, 'gi');
+                regex = new RegExp(`(${keyword})`, 'gi');
+            }
+
+            let match;
+            while ((match = regex.exec(normalizedText)) !== null) {
+                const startIdx = match.index;
+                const endIdx = regex.lastIndex;
+                const before = rawText.slice(Math.max(0, startIdx - 50), startIdx);
+                const after = rawText.slice(endIdx, endIdx + 50);
+                const matchedText = rawText.slice(startIdx, endIdx);
+
+                const fragment = (
+                    <span key={`${startIdx}-${endIdx}`}>
+                        {before}
+                        <span style={{ color: 'red' }}>{matchedText}</span>
+                        {after}...
+                    </span>
+                );
+
+                resultFragments.push(fragment);
+            }
+        });
+    });
+
+    return (
+        <div style={{ lineHeight: 1.5 }}>
+            {
+                // Dùng map để tạo ra mảng các phần tử mà không cần phải dùng reduce
+                resultFragments.map((fragment, idx) => (
+                    <React.Fragment key={idx}>{fragment}</React.Fragment>
+                ))
+            }
+        </div>
+    );
+}
+
+const search = 'read';
+const data = {
+    block: [
+        {
+            data: {
+                text: 'I was just reading this amazing book about how to read faster and better.',
+            },
+        },
+        {
+            data: {
+                text: 'There’s a reader’s club downtown. They gather weekly for reading sessions.',
+            },
+        },
+        {
+            data: {
+                text: 'Nothing here matches.',
+            },
+        },
+    ],
+};
+
+const c = '東京'; // Từ khóa tiếng Nhật (ví dụ: "Tokyo")
+const d = {
+    block: [
+        {
+            data: {
+                text: '私は東京に住んでいます。東京は素晴らしい場所です。', // Văn bản chứa từ khóa "東京"
+            },
+        },
+        {
+            data: {
+                text: '大阪は日本で大きな都市の一つです。', // Văn bản không chứa từ khóa "東京"
+            },
+        },
+    ],
+};
+
+function Live() {
+    const [a, setA] = useState('');
+    const [b, setB] = useState('');
+    const [lang, setLang] = useState('en');
+
+    const highlightedText = highlightWords(c, d, lang);
+
+    return (
+        <div style={{ marginTop: 50, padding: 20 }}>
+            <div style={{ marginBottom: 20 }}>
+                <label>
+                    Input A:
+                    <input
+                        type="text"
+                        value={a}
+                        onChange={(e) => setA(e.target.value)}
+                        style={{ marginLeft: 10, padding: 5, width: '100%', border: '1px solid #ccc' }}
+                    />
+                </label>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+                <label>
+                    Input B:
+                    <input
+                        type="text"
+                        value={b}
+                        onChange={(e) => setB(e.target.value)}
+                        style={{ marginLeft: 10, padding: 5, width: '100%', border: '1px solid #ccc' }}
+                    />
+                </label>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+                <label>
+                    <input
+                        type="radio"
+                        name="language"
+                        value="en"
+                        checked={lang === 'en'}
+                        onChange={() => setLang('en')}
+                        style={{ marginRight: 5 }}
+                    />
+                    English
+                </label>
+                <label style={{ marginLeft: 20 }}>
+                    <input
+                        type="radio"
+                        name="language"
+                        value="ja"
+                        checked={lang === 'ja'}
+                        onChange={() => setLang('ja')}
+                        style={{ marginRight: 5 }}
+                    />
+                    Japanese
+                </label>
+            </div>
+            <h1>{highlightedText}</h1>
+            <h2>{highlightFromObject(search, data, 'en')}</h2>
+        </div>
+    );
+}
+
+export default Live;
